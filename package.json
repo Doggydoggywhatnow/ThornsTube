@@ -47,7 +47,8 @@
     "checkforbadtemplates": "node _scripts/findMissingTemplates.mjs",
     "pack:tauri": "webpack --mode=production --config-node-env=production --config _scripts/webpack.tauri.config.js",
     "dev:tauri": "webpack serve --mode=development --config-node-env=development --config _scripts/webpack.tauri.config.js --port 9080",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "sync-upstream": "bash _scripts/sync-upstream.sh"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.3.1",

@@ -1,0 +1,48 @@
+name: Sync upstream FreeTube
+
+# Weekly (and on demand): merge FreeTube's development branch into a
+# `upstream-sync` branch and open a pull request, so fixes are reviewed
+# before they land. Does nothing when already up to date.
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge upstream
+        id: merge
+        run: |
+          git config user.name "upstream-sync"
+          git config user.email "upstream-sync@users.noreply.github.com"
+          git remote add upstream https://github.com/FreeTubeApp/FreeTube.git
+          git fetch upstream development
+          if git merge-base --is-ancestor upstream/development HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git checkout -B upstream-sync
+          git merge --no-edit upstream/development
+          git push --force-with-lease origin upstream-sync
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open pull request
+        if: steps.merge.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr view upstream-sync >/dev/null 2>&1 || gh pr create \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head upstream-sync \
+            --title "Merge upstream FreeTube" \
+            --body "Automated merge of FreeTubeApp/FreeTube@development. If src/preload/interface.js changed, mirror it in src/tauri/ftElectron.js."
