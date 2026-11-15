@@ -80,6 +80,11 @@ function generateInFrame(fetchFunc, args) {
             body: message.body
           })
           const body = await response.arrayBuffer()
+
+          if (!response.ok) {
+            console.error(`[ThornsTube] PO token request failed: ${response.status} ${message.url}`, new TextDecoder().decode(body.slice(0, 300)))
+          }
+
           reply({ status: response.status, headers: [...response.headers.entries()], body }, [body])
         } catch (error) {
           reply({ error: String(error?.message ?? error) })

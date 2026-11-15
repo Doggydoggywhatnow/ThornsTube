@@ -110,6 +110,14 @@ window.fetch = async (input, init) => {
  * @param {RequestInit} options
  */
 function nativeRequest(url, options) {
+  // The HTTP plugin identifies itself as "tauri-plugin-http/x.y.z" unless told otherwise.
+  // Send what the webview itself would send, like Electron's Chromium does.
+  const headers = new Headers(options.headers)
+  if (!headers.has('User-Agent')) headers.set('User-Agent', navigator.userAgent)
+  if (!headers.has('Accept')) headers.set('Accept', '*/*')
+  if (!headers.has('Accept-Language')) headers.set('Accept-Language', navigator.languages?.join(',') || 'en-US,en;q=0.9')
+  options = { ...options, headers }
+
   if (proxyUrl) {
     options = { ...options, proxy: { all: proxyUrl } }
   }
@@ -135,6 +143,9 @@ function botGuardFetch(url, init) {
   } else {
     headers.set('Referer', 'https://www.youtube.com/')
     headers.set('Origin', 'https://www.youtube.com')
+    headers.set('Sec-Fetch-Dest', 'empty')
+    headers.set('Sec-Fetch-Mode', 'cors')
+    headers.set('Sec-Fetch-Site', 'same-origin')
   }
 
   return nativeRequest(url, { ...init, headers })
