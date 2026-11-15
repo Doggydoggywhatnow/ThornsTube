@@ -127,10 +127,36 @@ async fn native_fetch(
     Ok(Response::new(out))
 }
 
+// The PO token (BotGuard) frame is served from its own URL scheme so that it runs with a real,
+// non-opaque origin (BotGuard rejects sandboxed opaque-origin pages) while staying isolated from
+// the app's own origin, so Google's script cannot read app data (settings, subscriptions...).
+const BOTGUARD_FRAME_HTML: &str = "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title></title></head><body><script src=\"/botGuardFrame.js\"></script></body></html>";
+
+fn botguard_protocol<R: tauri::Runtime>(
+    ctx: tauri::UriSchemeContext<'_, R>,
+    request: tauri::http::Request<Vec<u8>>,
+) -> tauri::http::Response<Vec<u8>> {
+    let (status, mime, body): (u16, &str, Vec<u8>) = match request.uri().path() {
+        "/frame.html" => (200, "text/html; charset=utf-8", BOTGUARD_FRAME_HTML.as_bytes().to_vec()),
+        "/botGuardFrame.js" => match ctx.app_handle().asset_resolver().get("botGuardFrame.js".into()) {
+            Some(asset) => (200, "text/javascript; charset=utf-8", asset.bytes),
+            None => (404, "text/plain", b"not found".to_vec()),
+        },
+        _ => (404, "text/plain", b"not found".to_vec()),
+    };
+
+    tauri::http::Response::builder()
+        .status(status)
+        .header("Content-Type", mime)
+        .body(body)
+        .unwrap()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(Clients::default())
+        .register_uri_scheme_protocol("ftbotguard", |ctx, request| botguard_protocol(ctx, request))
         .invoke_handler(tauri::generate_handler![native_fetch])
         .run(tauri::generate_context!())
         .expect("error while running ThornsTube");

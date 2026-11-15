@@ -1,6 +1,6 @@
 // PO token generation for Tauri, replacing src/main/poTokenGenerator.js.
 //
-// Each token is generated in a fresh sandboxed iframe (opaque origin, no access
+// Each token is generated in a fresh sandboxed iframe (separate origin, no access
 // to app storage or cookies) that is thrown away afterwards, mirroring the
 // throw-away session the Electron implementation uses. The iframe's network
 // requests are forwarded to the parent, which only allows a short list of
@@ -12,6 +12,11 @@ const ALLOWED = [
   /^https:\/\/www\.youtube\.com\/api\/jnn\//,
   /^https:\/\/jnn-pa\.googleapis\.com\//
 ]
+
+// Custom protocols are http://<scheme>.localhost on Windows and Android, <scheme>://localhost elsewhere
+const FRAME_URL = /windows|android/i.test(navigator.userAgent)
+  ? 'http://ftbotguard.localhost/frame.html'
+  : 'ftbotguard://localhost/frame.html'
 
 let queue = Promise.resolve()
 
@@ -40,12 +45,14 @@ export function generatePoToken(fetchFunc, videoId, context, initialAttestationD
 function generateInFrame(fetchFunc, args) {
   return new Promise((resolve, reject) => {
     const iframe = document.createElement('iframe')
-    iframe.setAttribute('sandbox', 'allow-scripts')
+    // The frame has its own origin (custom scheme, see src-tauri/src/lib.rs), so it cannot reach app data.
+    // The sandbox still blocks top navigation, popups and forms.
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin')
     iframe.tabIndex = -1
     // BotGuard measures the viewport, so a tiny frame looks like a bot. The Electron implementation
     // emulates 1920x1080 (src/main/poTokenGenerator.js); do the same, positioned off-screen.
     iframe.style.cssText = 'position:fixed;left:-20000px;top:0;width:1920px;height:1080px;border:0;pointer-events:none'
-    iframe.srcdoc = `<!doctype html><html lang="en"><head><title></title></head><body><script src="${new URL('botGuardFrame.js', location.href).href}"></script></body></html>`
+    iframe.src = FRAME_URL
 
     const timeout = setTimeout(() => finish(new Error('PO token generation timed out')), 60_000)
 
