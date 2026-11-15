@@ -44,7 +44,10 @@
     "pack:preload": "webpack --mode=production --config-node-env=production --config _scripts/webpack.preload.config.js",
     "pack:web": "webpack --mode=production --config-node-env=production --config _scripts/webpack.web.config.js",
     "pack:botGuardScript": "webpack --config _scripts/webpack.botGuardScript.config.js",
-    "checkforbadtemplates": "node _scripts/findMissingTemplates.mjs"
+    "checkforbadtemplates": "node _scripts/findMissingTemplates.mjs",
+    "pack:tauri": "webpack --mode=production --config-node-env=production --config _scripts/webpack.tauri.config.js",
+    "dev:tauri": "webpack serve --mode=development --config-node-env=development --config _scripts/webpack.tauri.config.js --port 9080",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.3.1",
@@ -53,6 +56,8 @@
     "@fortawesome/free-solid-svg-icons": "^7.3.1",
     "@fortawesome/vue-fontawesome": "^3.3.3",
     "@seald-io/nedb": "^4.1.2",
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-http": "^2.9.0",
     "autolinker": "^4.1.5",
     "bgutils-js": "^4.0.3",
     "dompurify": "^3.4.17",
@@ -75,6 +80,7 @@
     "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
     "@magda/tree-kill": "1.2.3",
     "@stylistic/eslint-plugin": "^5.10.0",
+    "@tauri-apps/cli": "^2.12.4",
     "css-loader": "^7.1.5",
     "cssnano": "^9.9.0",
     "electron": "^44.10.0",

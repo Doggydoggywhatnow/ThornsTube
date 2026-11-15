@@ -30,3 +30,8 @@ debug/
 lefthook-local.yml
 
 locale-errors.json
+
+# Tauri
+/dist-tauri
+/src-tauri/target
+/src-tauri/gen
