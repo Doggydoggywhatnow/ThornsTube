@@ -14,8 +14,11 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-# unsafe-headers: lets the app set Origin/Referer, which YouTube requires
-tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
+# - unsafe-headers: lets the app set Origin/Referer, which YouTube requires
+# - default features are off on purpose: the default "cookies" feature keeps a
+#   persistent cookie jar on disk, which would store YouTube tracking cookies.
+# - socks: FreeTube's proxy settings accept socks5 URLs
+tauri-plugin-http = { version = "2", default-features = false, features = ["unsafe-headers", "rustls-tls", "http2", "charset", "system-proxy", "socks"] }
 
 [profile.release]
 lto = true

@@ -8,6 +8,15 @@
 // This file is only bundled by _scripts/webpack.tauri.config.js.
 
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
+import { generatePoToken } from './poToken'
+
+// Electron's renderer has a `process` global; some bundled dependencies (e.g. the
+// Node `util` polyfill) expect it at load time. This entry runs before them.
+window.process ??= {
+  env: {},
+  nextTick: (callback, ...args) => queueMicrotask(() => callback(...args)),
+  platform: 'browser'
+}
 
 const isMobile = /android|iphone|ipad/i.test(navigator.userAgent)
 
@@ -87,19 +96,48 @@ window.fetch = async (input, init) => {
   const headers = new Headers(request.headers)
   applyHeaderRules(url, headers)
 
-  // Never send YouTube cookies set by the webview; tracking cookies are not wanted.
-  const options = {
+  return await nativeRequest(url, {
     method: request.method,
     headers,
     body: request.body ? await request.arrayBuffer() : undefined,
     signal: request.signal
-  }
+  })
+}
 
+/**
+ * Sends a request through the Rust HTTP client (no CORS, no cookie jar).
+ * @param {string} url
+ * @param {RequestInit} options
+ */
+function nativeRequest(url, options) {
   if (proxyUrl) {
-    options.proxy = { all: proxyUrl }
+    options = { ...options, proxy: { all: proxyUrl } }
   }
 
-  return await tauriFetch(url, options)
+  return tauriFetch(url, options)
+}
+
+/**
+ * Fetch used by the sandboxed BotGuard frame, mirrors the header rules of the
+ * `potoken` session in src/main/poTokenGenerator.js.
+ * @param {string} url
+ * @param {RequestInit} init
+ */
+function botGuardFetch(url, init) {
+  const headers = new Headers(init.headers)
+
+  if (url.startsWith('https://www.youtube.com/youtubei/')) {
+    applyHeaderRules(url, headers)
+  } else if (url.startsWith('https://www.google.com/js/')) {
+    headers.set('Sec-Fetch-Dest', 'script')
+    headers.set('Sec-Fetch-Site', 'cross-site')
+    headers.set('Accept-Language', '*')
+  } else {
+    headers.set('Referer', 'https://www.youtube.com/')
+    headers.set('Origin', 'https://www.youtube.com')
+  }
+
+  return nativeRequest(url, { ...init, headers })
 }
 
 // ---------------------------------------------------------------------------
@@ -177,9 +215,9 @@ window.ftElectron = {
   playerCacheGet: async (key) => playerCache.get(key),
   playerCacheSet: async (key, value) => { playerCache.set(key, value) },
 
-  // TODO: needs a hidden webview running the BotGuard script (see src/main/poTokenGenerator.js)
-  generatePoToken: async () => {
-    throw new Error('PO token generation is not implemented yet')
+  // Runs src/botGuardScript.js in a sandboxed iframe, see ./poToken.js
+  generatePoToken: (videoId, context, initialAttestationData, ytConfig) => {
+    return generatePoToken(botGuardFetch, videoId, context, initialAttestationData, ytConfig)
   },
 
   // TODO: native folder picker + write (tauri-plugin-dialog / tauri-plugin-fs)
