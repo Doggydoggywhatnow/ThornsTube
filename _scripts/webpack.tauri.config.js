@@ -33,6 +33,17 @@ const config = {
     // Executed inside the sandboxed iframe that generates PO tokens
     botGuardFrame: path.join(__dirname, '../src/tauri/botGuardFrame.js')
   },
+  module: {
+    ...rendererConfig.module,
+    rules: [
+      {
+        test: /store[\\/]modules[\\/]settings\.js$/,
+        enforce: 'pre',
+        loader: path.join(__dirname, 'tauriDefaultsLoader.js')
+      },
+      ...rendererConfig.module.rules
+    ]
+  },
   plugins,
   output: {
     ...rendererConfig.output,
