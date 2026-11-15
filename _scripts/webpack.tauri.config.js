@@ -4,9 +4,17 @@
 const path = require('path')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const rendererConfig = require('./webpack.renderer.config')
+const ProcessLocalesPlugin = require('./ProcessLocalesPlugin')
 
 // index.html must only load the renderer; the BotGuard frame script is loaded by the sandboxed iframe
 const plugins = rendererConfig.plugins.map((plugin) => {
+  if (plugin instanceof ProcessLocalesPlugin) {
+    // The renderer requests `<locale>.json.br` in production Electron builds, where the main
+    // process decompresses it (src/main/index.js). Tauri's asset protocol does not, so keep
+    // the file names but store plain JSON in them (Tauri compresses embedded assets itself).
+    plugin.compressLocale = async (data) => Buffer.from(data)
+  }
+
   if (plugin instanceof HtmlWebpackPlugin) {
     return new HtmlWebpackPlugin({ ...plugin.userOptions, chunks: ['renderer'] })
   }
