@@ -156,6 +156,24 @@ fn botguard_protocol<R: tauri::Runtime>(
 pub fn run() {
     tauri::Builder::default()
         .manage(Clients::default())
+        .setup(|app| {
+            let mut window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
+                .title("ThornsTube")
+                .inner_size(1200.0, 800.0)
+                .min_inner_size(400.0, 300.0);
+
+            // WebKitGTK reports a bogus "Version/60.5" which YouTube's bot detection can flag.
+            #[cfg(target_os = "linux")]
+            {
+                window = window.user_agent(
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+                );
+            }
+
+            let _ = &mut window;
+            window.build()?;
+            Ok(())
+        })
         .register_uri_scheme_protocol("ftbotguard", |ctx, request| botguard_protocol(ctx, request))
         .invoke_handler(tauri::generate_handler![native_fetch])
         .run(tauri::generate_context!())

@@ -58,6 +58,9 @@ function generateInFrame(fetchFunc, args) {
 
     // Last response from the token endpoints, appended to errors for diagnosis
     let lastResponse = ''
+    // GenerateIT answers [integrityToken, ttl, threshold, fallbackToken]. When BotGuard attestation is
+    // rejected the integrity token is null and only the (not content-bound) fallback token is present.
+    let fallbackToken = null
 
     const finish = (error, result) => {
       clearTimeout(timeout)
@@ -74,7 +77,10 @@ function generateInFrame(fetchFunc, args) {
       if (message.type === 'ft-ready') {
         iframe.contentWindow.postMessage({ type: 'ft-generate', args }, '*')
       } else if (message.type === 'ft-generate-result') {
-        if (message.error) finish(new Error(`${message.error}${lastResponse ? ` [${lastResponse}]` : ''}`))
+        if (message.error && fallbackToken) {
+          console.warn('[ThornsTube] BotGuard attestation was rejected, using the fallback PO token. Playback may be limited.')
+          finish(null, fallbackToken)
+        } else if (message.error) finish(new Error(`${message.error}${lastResponse ? ` [${lastResponse}]` : ''}`))
         else finish(null, message.result)
       } else if (message.type === 'ft-fetch') {
         const reply = (data, transfer) => iframe.contentWindow?.postMessage({ type: 'ft-fetch-result', id: message.id, ...data }, '*', transfer)
@@ -91,6 +97,13 @@ function generateInFrame(fetchFunc, args) {
             body: message.body
           })
           const body = await response.arrayBuffer()
+
+          if (message.url.endsWith('/GenerateIT')) {
+            try {
+              const parsed = JSON.parse(new TextDecoder().decode(body))
+              if (typeof parsed[0] !== 'string' && typeof parsed[3] === 'string') fallbackToken = parsed[3]
+            } catch { /* not JSON */ }
+          }
 
           lastResponse = `${response.status} ${new URL(message.url).pathname}: ${new TextDecoder().decode(body.slice(0, 200))}`
           if (!response.ok) {
