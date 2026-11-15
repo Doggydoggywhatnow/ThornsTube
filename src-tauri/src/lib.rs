@@ -154,19 +154,16 @@ fn botguard_protocol<R: tauri::Runtime>(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // WebKitGTK's DMA-BUF renderer leaves the window blank after a resize on some GPU/driver setups.
-    #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-    }
-
     tauri::Builder::default()
         .manage(Clients::default())
         .setup(|app| {
             let mut window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 .title("ThornsTube")
                 .inner_size(1200.0, 800.0)
-                .min_inner_size(400.0, 300.0);
+                .min_inner_size(400.0, 300.0)
+                // Shown by the frontend once the first frame is painted (src/tauri/ftElectron.js),
+                // so there is no blank white window while the app loads.
+                .visible(false);
 
             // WebKitGTK reports a bogus "Version/60.5" which YouTube's bot detection can flag.
             #[cfg(target_os = "linux")]
@@ -177,7 +174,13 @@ pub fn run() {
             }
 
             let _ = &mut window;
-            window.build()?;
+            let window = window.build()?;
+
+            // Safety net: never leave the window hidden if the frontend fails to start.
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(8));
+                let _ = window.show();
+            });
             Ok(())
         })
         .register_uri_scheme_protocol("ftbotguard", |ctx, request| botguard_protocol(ctx, request))

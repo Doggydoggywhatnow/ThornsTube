@@ -303,3 +303,32 @@ window.ftElectron = {
   handleSyncPlaylists: noop,
   handleSyncSubscriptionCache: noop
 }
+
+// ---------------------------------------------------------------------------
+// Show the (initially hidden) window once the app has rendered its first frame
+// ---------------------------------------------------------------------------
+
+const showWindow = async () => {
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    await getCurrentWindow().show()
+  } catch { /* mobile or already visible */ }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const app = document.getElementById('app')
+  const onReady = () => requestAnimationFrame(() => requestAnimationFrame(showWindow))
+
+  if (app?.childElementCount) {
+    onReady()
+    return
+  }
+
+  const observer = new MutationObserver(() => {
+    if (app.childElementCount) {
+      observer.disconnect()
+      onReady()
+    }
+  })
+  observer.observe(app, { childList: true })
+})

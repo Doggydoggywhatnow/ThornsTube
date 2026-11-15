@@ -5,6 +5,7 @@
   "windows": ["main", "win-*"],
   "permissions": [
     "core:default",
+    "core:window:allow-show",
     "core:webview:allow-set-webview-zoom",
     "core:webview:allow-create-webview-window"
   ]
