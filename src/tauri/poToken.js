@@ -42,8 +42,9 @@ function generateInFrame(fetchFunc, args) {
     const iframe = document.createElement('iframe')
     iframe.setAttribute('sandbox', 'allow-scripts')
     iframe.tabIndex = -1
-    iframe.style.cssText = 'position:fixed;width:1px;height:1px;border:0;opacity:0;pointer-events:none'
-    // Same dimensions BotGuard sees on the Electron path are not emulated here; the frame is 1x1.
+    // BotGuard measures the viewport, so a tiny frame looks like a bot. The Electron implementation
+    // emulates 1920x1080 (src/main/poTokenGenerator.js); do the same, positioned off-screen.
+    iframe.style.cssText = 'position:fixed;left:-20000px;top:0;width:1920px;height:1080px;border:0;pointer-events:none'
     iframe.srcdoc = `<!doctype html><html lang="en"><head><title></title></head><body><script src="${new URL('botGuardFrame.js', location.href).href}"></script></body></html>`
 
     const timeout = setTimeout(() => finish(new Error('PO token generation timed out')), 60_000)
