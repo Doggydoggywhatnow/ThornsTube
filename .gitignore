@@ -35,3 +35,4 @@ locale-errors.json
 /dist-tauri
 /src-tauri/target
 /src-tauri/gen/schemas
+/src-tauri/gen/android/**/.kotlin/
