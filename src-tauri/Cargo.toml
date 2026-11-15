@@ -13,7 +13,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# devtools: right-click > Inspect Element in release builds. TEMPORARY, for debugging; remove before release.
+tauri = { version = "2", features = ["devtools"] }
 # HTTP client used by the native_fetch command (src/lib.rs). No cookie store: tracking
 # cookies must not persist. socks: FreeTube's proxy settings accept socks5 URLs.
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "charset", "socks", "gzip", "brotli", "system-proxy"] }
