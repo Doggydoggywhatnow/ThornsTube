@@ -47,7 +47,10 @@ fn client_for(clients: &Clients, proxy: &Option<String>) -> Result<Client, Strin
         return Ok(client.clone());
     }
 
-    let mut builder = Client::builder().connect_timeout(Duration::from_secs(30));
+    // HTTP/1.1 only: YouTube reset HTTP/2 streams from this client with PROTOCOL_ERROR.
+    let mut builder = Client::builder()
+        .http1_only()
+        .connect_timeout(Duration::from_secs(30));
     if let Some(url) = proxy {
         builder = builder.proxy(reqwest::Proxy::all(url).map_err(|e| error_chain(&e))?);
     }
@@ -78,7 +81,15 @@ async fn native_fetch(
     }
 
     let mut headers = HeaderMap::new();
+    // Connection-specific headers are managed by the HTTP client itself.
+    const SKIP: [&str; 9] = [
+        "connection", "keep-alive", "transfer-encoding", "te", "upgrade",
+        "proxy-connection", "proxy-authorization", "host", "content-length",
+    ];
     for (name, value) in &meta.headers {
+        if SKIP.contains(&name.to_ascii_lowercase().as_str()) {
+            continue;
+        }
         headers.append(
             HeaderName::from_bytes(name.as_bytes()).map_err(|e| format!("bad header {name}: {e}"))?,
             HeaderValue::from_str(value).map_err(|e| format!("bad value for {name}: {e}"))?,
