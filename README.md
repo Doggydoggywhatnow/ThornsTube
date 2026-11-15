@@ -1,4 +1,4 @@
-# ThornsTube
+# ThornsTube v0.0.0
 
 Enchant yourself and gain protection while fighting against big tech.
 
