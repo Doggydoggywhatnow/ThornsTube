@@ -48,6 +48,9 @@ function generateInFrame(fetchFunc, args) {
 
     const timeout = setTimeout(() => finish(new Error('PO token generation timed out')), 60_000)
 
+    // Last response from the token endpoints, appended to errors for diagnosis
+    let lastResponse = ''
+
     const finish = (error, result) => {
       clearTimeout(timeout)
       window.removeEventListener('message', onMessage)
@@ -63,7 +66,7 @@ function generateInFrame(fetchFunc, args) {
       if (message.type === 'ft-ready') {
         iframe.contentWindow.postMessage({ type: 'ft-generate', args }, '*')
       } else if (message.type === 'ft-generate-result') {
-        if (message.error) finish(new Error(message.error))
+        if (message.error) finish(new Error(`${message.error}${lastResponse ? ` [${lastResponse}]` : ''}`))
         else finish(null, message.result)
       } else if (message.type === 'ft-fetch') {
         const reply = (data, transfer) => iframe.contentWindow?.postMessage({ type: 'ft-fetch-result', id: message.id, ...data }, '*', transfer)
@@ -81,8 +84,9 @@ function generateInFrame(fetchFunc, args) {
           })
           const body = await response.arrayBuffer()
 
+          lastResponse = `${response.status} ${new URL(message.url).pathname}: ${new TextDecoder().decode(body.slice(0, 200))}`
           if (!response.ok) {
-            console.error(`[ThornsTube] PO token request failed: ${response.status} ${message.url}`, new TextDecoder().decode(body.slice(0, 300)))
+            console.error(`[ThornsTube] PO token request failed: ${response.status} ${message.url}`, lastResponse)
           }
 
           reply({ status: response.status, headers: [...response.headers.entries()], body }, [body])
