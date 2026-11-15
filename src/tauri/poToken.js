@@ -50,8 +50,10 @@ function generateInFrame(fetchFunc, args) {
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin')
     iframe.tabIndex = -1
     // BotGuard measures the viewport, so a tiny frame looks like a bot. The Electron implementation
-    // emulates 1920x1080 (src/main/poTokenGenerator.js); do the same, positioned off-screen.
-    iframe.style.cssText = 'position:fixed;left:-20000px;top:0;width:1920px;height:1080px;border:0;pointer-events:none'
+    // emulates 1920x1080 (src/main/poTokenGenerator.js); do the same. The frame stays inside the
+    // window (but invisible and behind everything): WebKit throttles timers and animation frames of
+    // iframes that are scrolled or positioned off-screen, which made the BotGuard VM time out.
+    iframe.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;opacity:0;pointer-events:none;z-index:-1'
     iframe.src = FRAME_URL
 
     const timeout = setTimeout(() => finish(new Error('PO token generation timed out')), 60_000)
