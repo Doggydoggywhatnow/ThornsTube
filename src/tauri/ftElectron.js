@@ -7,7 +7,7 @@
 //
 // This file is only bundled by _scripts/webpack.tauri.config.js.
 
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
+import { invoke } from '@tauri-apps/api/core'
 import { generatePoToken } from './poToken'
 
 // Electron's renderer has a `process` global; some bundled dependencies (e.g. the
@@ -106,23 +106,53 @@ window.fetch = async (input, init) => {
 
 /**
  * Sends a request through the Rust HTTP client (no CORS, no cookie jar).
+ * Wire format is documented in src-tauri/src/lib.rs.
  * @param {string} url
- * @param {RequestInit} options
+ * @param {{ method?: string, headers?: HeadersInit, body?: ArrayBuffer | null, signal?: AbortSignal | null }} options
+ * @returns {Promise<Response>}
  */
-function nativeRequest(url, options) {
-  // The HTTP plugin identifies itself as "tauri-plugin-http/x.y.z" unless told otherwise.
+async function nativeRequest(url, options) {
+  options.signal?.throwIfAborted()
+
   // Send what the webview itself would send, like Electron's Chromium does.
   const headers = new Headers(options.headers)
   if (!headers.has('User-Agent')) headers.set('User-Agent', navigator.userAgent)
   if (!headers.has('Accept')) headers.set('Accept', '*/*')
   if (!headers.has('Accept-Language')) headers.set('Accept-Language', navigator.languages?.join(',') || 'en-US,en;q=0.9')
-  options = { ...options, headers }
 
-  if (proxyUrl) {
-    options = { ...options, proxy: { all: proxyUrl } }
+  const meta = new TextEncoder().encode(JSON.stringify({
+    url,
+    method: options.method ?? 'GET',
+    headers: [...headers.entries()],
+    proxy: proxyUrl
+  }))
+  const body = options.body ? new Uint8Array(options.body) : new Uint8Array(0)
+
+  const payload = new Uint8Array(4 + meta.length + body.length)
+  new DataView(payload.buffer).setUint32(0, meta.length)
+  payload.set(meta, 4)
+  payload.set(body, 4 + meta.length)
+
+  let raw
+  try {
+    raw = await invoke('native_fetch', payload)
+  } catch (error) {
+    // Rust returns the full error chain; keep it visible in the UI and console.
+    console.error('[ThornsTube] native request failed:', error)
+    throw new TypeError(String(error), { cause: error })
   }
 
-  return tauriFetch(url, options)
+  options.signal?.throwIfAborted()
+
+  const view = new DataView(raw)
+  const metaLength = view.getUint32(0)
+  const response = JSON.parse(new TextDecoder().decode(new Uint8Array(raw, 4, metaLength)))
+  const responseBody = raw.slice(4 + metaLength)
+
+  const nullBody = [101, 204, 205, 304].includes(response.status)
+  const result = new Response(nullBody ? null : responseBody, { status: response.status, headers: response.headers })
+  Object.defineProperty(result, 'url', { value: response.url })
+  return result
 }
 
 /**

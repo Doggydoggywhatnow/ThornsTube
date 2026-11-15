@@ -1,15 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Minimal permissions: window/webview basics and outbound HTTPS only.",
+  "description": "Minimal permissions: window/webview basics. Network goes through the app's own native_fetch command.",
   "windows": ["main", "win-*"],
   "permissions": [
     "core:default",
     "core:webview:allow-set-webview-zoom",
-    "core:webview:allow-create-webview-window",
-    {
-      "identifier": "http:default",
-      "allow": [{ "url": "https://**" }, { "url": "http://**" }]
-    }
+    "core:webview:allow-create-webview-window"
   ]
 }
